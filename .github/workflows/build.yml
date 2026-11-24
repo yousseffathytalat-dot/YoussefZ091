@@ -1,0 +1,38 @@
+name: Build Android APK
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unzip the Android project
+        run: |
+          mkdir android
+          unzip -q "$(ls *.zip | grep -i android | head -n 1)" -d android
+          # if the zip has one folder inside, go into it
+          if [ ! -f android/settings.gradle ]; then
+            d=$(dirname "$(find android -name settings.gradle | head -n 1)")
+            mv "$d"/* android/ 2>/dev/null || true
+          fi
+          ls android
+
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '17' }
+
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: '8.7' }
+
+      - name: Build APK
+        working-directory: android
+        run: gradle assembleDebug --no-daemon --stacktrace
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: NexoraEdu-Android-APK
+          path: android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
